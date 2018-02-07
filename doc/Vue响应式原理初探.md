@@ -5,3 +5,284 @@
 受现代JavaScript 的限制 (以及废弃 **Object.observe**)，Vue不能检测到对象属性的添加或删除。由于 Vue 会在初始化实例时对属性执行**getter/setter**转化过程，所以属性必须在**data**对象上存在才能让Vue转换它，这样才能让它是响应的。
 
 ![vue响应式](https://cn.vuejs.org/images/data.png)
+
+我们这里是根据Vue2.3源码进行分析,Vue数据响应式变化主要涉及Observer,Watch,Dep这三个主要的类；因此要弄清Vue响应式变化需要明白这个三个类之间是如何运作联系的；以及它们的原理，负责的逻辑操作。那么我们从一个简单的Vue实例的代码来分析Vue的响应式原理
+```
+var vue = new Vue({
+    el: "#app",
+    data: {
+        name: 'Junga'
+    },
+    created () {
+        this.helloWorld()
+    },
+    methods: {
+        helloWorld: function() {
+            console.log('my name is' + this.name)
+        }
+    }
+    ...
+})
+```
+# Vue初始化实例
+根据Vue的[生命周期](https://cn.vuejs.org/v2/guide/instance.html#实例生命周期钩子)我们知道，Vue首先会进行init初始化操作；源码在[src/core/instance/init.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/instance/init.js)中
+
+```
+/*初始化生命周期*/
+initLifecycle(vm)
+/*初始化事件*/
+initEvents(vm)Object.defineProperty 
+/*初始化render*/
+initRender(vm)
+/*调用beforeCreate钩子函数并且触发beforeCreate钩子事件*/
+callHook(vm, 'beforeCreate')
+initInjections(vm) // resolve injections before data/props
+/*初始化props、methods、data、computed与watch*/
+initState(vm)
+initProvide(vm) // resolve provide after data/props
+/*调用created钩子函数并且触发created钩子事件*/
+callHook(vm, 'created')
+```
+以上代码可以看到**initState(vm)**是用来初始化props,methods,data,computed和watch;
+
+[src/core/instance/state.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/instance/state.js)
+```
+/*初始化props、methods、data、computed与watch*/
+export function initState (vm: Component) {
+  vm._watchers = []
+  const opts = vm.$options
+  /*初始化props*/
+  if (opts.props) initProps(vm, opts.props)
+  /*初始化方法*/
+  if (opts.methods) initMethods(vm, opts.methods)
+  /*初始化data*/
+  if (opts.data) {
+    initData(vm)
+  } else {
+    /*该组件没有data的时候绑定一个空对象*/
+    observe(vm._data = {}, true /* asRootData */)
+  }
+  /*初始化computed*/
+  if (opts.computed) initComputed(vm, opts.computed)
+  /*初始化watchers*/
+  if (opts.watch) initWatch(vm, opts.watch)
+}
+...
+
+/*初始化data*/
+function initData (vm: Component) {
+
+  /*得到data数据*/
+  let data = vm.$options.data
+  data = vm._data = typeof data === 'function'
+    ? getData(data, vm)
+    : data || {}defi
+  ...
+  //遍历data中的数据
+  while (i--) {
+
+    /*保证data中的key不与props中的key重复，props优先，如果有冲突会产生warning*/
+    if (props && hasOwn(props, keys[i])) {
+      process.env.NODE_ENV !== 'production' && warn(
+        `The data property "${keys[i]}" is already declared as a prop. ` +
+        `Use prop default value instead.`,
+        vm
+      )
+    } else if (!isReserved(keys[i])) {
+      /*判断是否是保留字段*/
+
+      /*这里是我们前面讲过的代理，将data上面的属性代理到了vm实例上*/
+      proxy(vm, `_data`, keys[i])
+    }
+  }
+  // observe data
+  /*这里通过observe实例化Observe对象，开始对数据进行绑定，asRootData用来根数据，用来计算实例化根数据的个数，下面会进行递归observe进行对深层对象的绑定。则asRootData为非true*/
+  observe(data, true /* asRootData */)
+}
+
+```
+## 1、initData
+
+现在我们重点分析下**initData**，它用来初始化data, 通过执行 **observe(data, true /* asRootData */)** 来实例化一个Observe对象，将data定义的每个属性进行getter/setter操作，这里就是Vue实现响应式的基础；**observe**的实现如下 [src/core/observer/index.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/observer/index.js)
+
+```
+ /*
+ 尝试创建一个Observer实例（__ob__），如果成功创建Observer实例则返回新的Observer实例，如果已有Observer实例则返回现有的Observer实例。
+ */
+export function observe (value: any, asRootData: ?boolean): Observer | void {
+  if (!isObject(value)) {
+    return
+  }
+  let ob: Observer | void
+  /*这里用__ob__这个属性来判断是否已经有Observer实例，如果没有Observer实例则会新建一个Observer实例并赋值给__ob__这个属性，如果已有Observer实例则直接返回该Observer实例，这里可以看Observer实例化的代码def(value, '__ob__', this)*/
+  if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
+    ob = value.__ob__
+  } else if (
+    /*
+      这里的判断是为了确保value是单纯的对象，而不是函数或者是Regexp等情况。
+      而且该对象在shouldConvert的时候才会进行Observer。这是一个标识位，避免重复对value进行Observer
+    */
+    observerState.shouldConvert &&
+    !isServerRendering() &&
+    (Array.isArray(value) || isPlainObject(value)) &&
+    Object.isExtensible(value) &&
+    !value._isVue
+  ) {
+    ob = new Observer(value)
+  }
+  if (asRootData && ob) {
+     /*如果是根数据则计数，后面Observer中的observe的asRootData非true*/
+    ob.vmCount++
+  }
+  return ob
+}
+```
+这里**new Observer(value)**就是实现响应式的核心方法之一了，通过它将data转变可以成观察的，而这里正是我们开头说的，用了 **Object.defineProperty** 实现了data的getter/setter操作，通过**Watcher**来观察数据的变化，进而更新到视图中。
+
+## 2、Observer
+
+Observer类是将每个目标对象（即data）的键值转换成getter/setter形式，用于进行依赖收集以及调度更新。
+
+[src/core/observer/index.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/observer/index.js)
+
+```
+export class Observer {
+  value: any;
+  dep: Dep;
+  vmCount: number; // number of vms that has this object as root $data
+
+  constructor (value: any) {
+    this.value = value
+    this.dep = new Dep()
+    this.vmCount = 0
+    /* 
+    将Observer实例绑定到data的__ob__属性上面去，之前说过observe的时候会先检测是否已经有__ob__对象存放Observer实例了，def方法定义可以参考/src/core/util/lang.js
+    */
+    def(value, '__ob__', this)
+    if (Array.isArray(value)) {
+      /*
+          如果是数组，将修改后可以截获响应的数组方法替换掉该数组的原型中的原生方法，达到监听数组数据变化响应的效果。
+          这里如果当前浏览器支持__proto__属性，则直接覆盖当前数组对象原型上的原生数组方法，如果不支持该属性，则直接覆盖数组对象的原型。
+      */
+      const augment = hasProto
+        ? protoAugment  /*直接覆盖原型的方法来修改目标对象*/
+        : copyAugment   /*定义（覆盖）目标对象或数组的某一个方法*/
+      augment(value, arrayMethods, arrayKeys)
+
+      /*如果是数组则需要遍历数组的每一个成员进行observe*/
+      this.observeArray(value)
+    } else {
+      /*如果是对象则直接walk进行绑定*/
+      this.walk(value)
+    },
+
+    walk (obj: Object) {
+      const keys = Object.keys(obj)
+      /*walk方法会遍历对象的每一个属性进行defineReactive绑定*/
+      for (let i = 0; i < keys.length; i++) {
+        defineReactive(obj, keys[i], obj[keys[i]])
+      }
+    }
+  }
+```
+首先将Observer实例绑定到data的__ob__属性上面去，这里可以减少每次实例化已经有实例的操作；若data为数组，先实现对应的[变异方法](https://cn.vuejs.org/v2/guide/list.html#变异方法)（这里变异方法是指Vue重写了数组的7种原生方法，这里不做赘述，后续再说明），再将数组的每个成员进行observe，使之成响应式数据；否则执行walk()方法，遍历data所有的数据，进行getter/setter绑定，这里的核心方法就是**defineReative(obj, keys[i], obj[keys[i]])**
+
+```
+export function defineReactive (
+  obj: Object,
+  key: string,
+  val: any,
+  customSetter?: Function
+) {
+  /*在闭包中定义一个dep对象*/
+  const dep = new Dep()
+  const property = Object.getOwnPropertyDescriptor(obj, key)
+  if (property && property.configurable === false) {
+    return
+  }
+
+  /*如果之前该对象已经预设了getter以及setter函数则将其取出来，新定义的getter/setter中会将其执行，保证不会覆盖之前已经定义的getter/setter。*/
+  // cater for pre-defined getter/setters
+  const getter = property && property.get
+  const setter = property && property.set
+
+  /*对象的子对象递归进行observe并返回子节点的Observer对象*/
+  let childOb = observe(val)
+  Object.defineProperty(obj, key, {
+    enumerable: true,
+    configurable: true,
+    get: function reactiveGetter () {
+      /*如果原本对象拥有getter方法则执行*/
+      const value = getter ? getter.call(obj) : val
+      if (Dep.target) {
+        /*进行依赖收集*/
+        dep.depend()
+        if (childOb) {
+          /*子对象进行依赖收集，其实就是将同一个watcher观察者实例放进了两个depend中，一个是正在本身闭包中的depend，另一个是子元素的depend*/
+          childOb.dep.depend()
+        }
+        if (Array.isArray(value)) {
+          /*是数组则需要对每一个成员都进行依赖收集，如果数组的成员还是数组，则递归。*/
+          dependArray(value)
+        }
+      }
+      return value
+    },
+    set: function reactiveSetter (newVal) {
+      /*通过getter方法获取当前值，与新值进行比较，一致则不需要执行下面的操作*/
+      const value = getter ? getter.call(obj) : val
+      /* eslint-disable no-self-compare */
+      if (newVal === value || (newVal !== newVal && value !== value)) {
+        return
+      }
+      /* eslint-enable no-self-compare */
+      if (process.env.NODE_ENV !== 'production' && customSetter) {
+        customSetter()
+      }
+      if (setter) {
+        /*如果原本对象拥有setter方法则执行setter*/
+        setter.call(obj, newVal)
+      } else {
+        val = newVal
+      }
+      /*新的值需要重新进行observe，保证数据响应式*/
+      childOb = observe(newVal)
+      /*dep对象通知所有的观察者*/
+      dep.notify()
+    }
+  })
+}
+```
+其中getter方法：
+1、先为每个data声明一个**Dep**实例对象，被用于getter时执行dep.depend()进行收集相关的依赖;
+2、根据Dep.target来判断是否收集依赖，还是普通取值。Dep.target是在什么时候，如何收集的后面再说明，先简单了解它的作用，
+
+那么问题来了，我们为啥要收集相关依赖呢？
+
+```
+new Vue({
+    template: 
+        `<div>
+            <span>text1:</span> {{text1}}
+            <span>text2:</span> {{text2}}
+        <div>`,
+    data: {
+        text1: 'text1',
+        text2: 'text2',
+        text3: 'text3'
+    }
+});
+```
+我们可以从以上代码看出，data中text3并没有被模板实际用到，为了提高代码执行效率，我们没有必要对其进行响应式处理，因此，依赖收集简单点理解就是收集只在实际页面中用到的data数据，然后打上标记，这里就是标记为Dep.target。
+
+在setter方法中，
+1、获取新的值并且进行observe，保证数据响应式；
+2、通过dep对象通知所有观察者去更新数据，从而达到响应式效果。
+
+在Observer类中，我们可以看到在getter时，dep会收集相关依赖，即收集依赖的watcher，然后在setter操作时候通过dep去通知watcher,此时watcher就执行变化，我们用一张图描述这三者之间的关系：
+![关系图](https://github.com/huangzhuangjia/huangzhuangjia.github.io/blob/master/img/%E7%A4%BA%E6%84%8F%E5%9B%BE.png?raw=true)
+
+从图我们可以简单理解：Dep可以看做是书店，Watcher就是书店订阅者，而Observer就是书店的书，订阅者在书店订阅书籍，就可以添加订阅者信息，一旦有新书就会通过书店给订阅者发送消息。
+## 3、Watcher
+## 4、Dep
+

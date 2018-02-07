@@ -166,7 +166,7 @@ function initData (vm: Component) {
     }
   }
   // observe data
-  /*从这里开始我们要observe了，开始对数据进行绑定，这里有尤大大的注释asRootData，这步作为根数据，下面会进行递归observe进行对深层对象的绑定。*/
+  /*通过observe实例化Observe对象，开始对数据进行绑定，asRootData用来根数据，用来计算实例化根数据的个数，下面会进行递归observe进行对深层对象的绑定。则asRootData为非true*/
   observe(data, true /* asRootData */)
 }
 
