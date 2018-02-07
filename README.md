@@ -1,5 +1,5 @@
 # Vue 源码分析
-## 目录结构
+## 目录结构(vue2.3)
 ```
 ├── compiler //模板解析的相关文件
 │   ├── codegen //根据ast生成render函数
