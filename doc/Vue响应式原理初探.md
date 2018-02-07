@@ -254,8 +254,8 @@ export function defineReactive (
 }
 ```
 其中getter方法：
-1、先为每个data声明一个**Dep**实例对象，被用于getter时执行dep.depend()进行收集相关的依赖;
-2、根据Dep.target来判断是否收集依赖，还是普通取值。Dep.target是在什么时候，如何收集的后面再说明，先简单了解它的作用，
+1. 先为每个data声明一个**Dep**实例对象，被用于getter时执行dep.depend()进行收集相关的依赖;
+2. 根据Dep.target来判断是否收集依赖，还是普通取值。Dep.target是在什么时候，如何收集的后面再说明，先简单了解它的作用，
 
 那么问题来了，我们为啥要收集相关依赖呢？
 
@@ -276,8 +276,8 @@ new Vue({
 我们可以从以上代码看出，data中text3并没有被模板实际用到，为了提高代码执行效率，我们没有必要对其进行响应式处理，因此，依赖收集简单点理解就是收集只在实际页面中用到的data数据，然后打上标记，这里就是标记为Dep.target。
 
 在setter方法中，
-1、获取新的值并且进行observe，保证数据响应式；
-2、通过dep对象通知所有观察者去更新数据，从而达到响应式效果。
+1. 获取新的值并且进行observe，保证数据响应式；
+2. 通过dep对象通知所有观察者去更新数据，从而达到响应式效果。
 
 在Observer类中，我们可以看到在getter时，dep会收集相关依赖，即收集依赖的watcher，然后在setter操作时候通过dep去通知watcher,此时watcher就执行变化，我们用一张图描述这三者之间的关系：
 ![关系图](https://github.com/huangzhuangjia/huangzhuangjia.github.io/blob/master/img/%E7%A4%BA%E6%84%8F%E5%9B%BE.png?raw=true)
