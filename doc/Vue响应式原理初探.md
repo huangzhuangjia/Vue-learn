@@ -177,7 +177,9 @@ export class Observer {
     }
   }
 ```
-首先将Observer实例绑定到data的__ob__属性上面去，防止重复绑定；若data为数组，先实现对应的[变异方法](https://cn.vuejs.org/v2/guide/list.html#变异方法)（这里变异方法是指Vue重写了数组的7种原生方法，这里不做赘述，后续再说明），再将数组的每个成员进行observe，使之成响应式数据；否则执行walk()方法，遍历data所有的数据，进行getter/setter绑定，这里的核心方法就是**defineReative(obj, keys[i], obj[keys[i]])**
+1. 首先将Observer实例绑定到data的__ob__属性上面去，防止重复绑定；
+2. 若data为数组，先实现对应的[变异方法](https://cn.vuejs.org/v2/guide/list.html#变异方法)（这里变异方法是指Vue重写了数组的7种原生方法，这里不做赘述，后续再说明），再将数组的每个成员进行observe，使之成响应式数据；
+3. 否则执行walk()方法，遍历data所有的数据，进行getter/setter绑定，这里的核心方法就是**defineReative(obj, keys[i], obj[keys[i]])**
 
 ```js
 export function defineReactive (
@@ -276,6 +278,262 @@ new Vue({
 
 从图我们可以简单理解：Dep可以看做是书店，Watcher就是书店订阅者，而Observer就是书店的书，订阅者在书店订阅书籍，就可以添加订阅者信息，一旦有新书就会通过书店给订阅者发送消息。
 ## 3、Watcher
+Watcher是一个观察者对象。依赖收集以后Watcher对象会被保存在Dep的subs中，数据变动的时候Dep会通知Watcher实例，然后由Watcher实例回调cb进行视图的更新。
+
+[src/core/observer/watcher.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/observer/watcher.js)
+```js
+export default class Watcher {
+  constructor (
+    vm: Component,
+    expOrFn: string | Function,
+    cb: Function,
+    options?: Object
+  ) {
+    this.vm = vm
+    /*_watchers存放订阅者实例*/
+    vm._watchers.push(this)
+    // options
+    if (options) {
+      this.deep = !!options.deep
+      this.user = !!options.user
+      this.lazy = !!options.lazy
+      this.sync = !!options.sync
+    } else {
+      this.deep = this.user = this.lazy = this.sync = false
+    }
+    this.cb = cb
+    this.id = ++uid // uid for batching
+    this.active = true
+    this.dirty = this.lazy // for lazy watchers
+    this.deps = []
+    this.newDeps = []
+    this.depIds = new Set()
+    this.newDepIds = new Set()
+    this.expression = process.env.NODE_ENV !== 'production'
+      ? expOrFn.toString()
+      : ''
+    // parse expression for getter
+    /*把表达式expOrFn解析成getter*/
+    if (typeof expOrFn === 'function') {
+      this.getter = expOrFn
+    } else {
+      this.getter = parsePath(expOrFn)
+      if (!this.getter) {
+        this.getter = function () {}
+        process.env.NODE_ENV !== 'production' && warn(
+          `Failed watching path: "${expOrFn}" ` +
+          'Watcher only accepts simple dot-delimited paths. ' +
+          'For full control, use a function instead.',
+          vm
+        )
+      }
+    }
+    this.value = this.lazy
+      ? undefined
+      : this.get()
+  }
+
+  /**
+   * Evaluate the getter, and re-collect dependencies.
+   */
+   /*获得getter的值并且重新进行依赖收集*/
+  get () {
+    /*将自身watcher观察者实例设置给Dep.target，用以依赖收集。*/
+    pushTarget(this)
+    let value
+    const vm = this.vm
+
+    /*执行了getter操作，看似执行了渲染操作，其实是执行了依赖收集。
+      在将Dep.target设置为自生观察者实例以后，执行getter操作。
+      譬如说现在的的data中可能有a、b、c三个数据，getter渲染需要依赖a跟c，
+      那么在执行getter的时候就会触发a跟c两个数据的getter函数，
+      在getter函数中即可判断Dep.target是否存在然后完成依赖收集，
+      将该观察者对象放入闭包中的Dep的subs中去。*/
+    if (this.user) {
+      try {
+        value = this.getter.call(vm, vm)
+      } catch (e) {
+        handleError(e, vm, `getter for watcher "${this.expression}"`)
+      }
+    } else {
+      value = this.getter.call(vm, vm)
+    }
+    // "touch" every property so they are all tracked as
+    // dependencies for deep watching
+    /*如果存在deep，则触发每个深层对象的依赖，追踪其变化*/
+    if (this.deep) {
+      /*递归每一个对象或者数组，触发它们的getter，使得对象或数组的每一个成员都被依赖收集，形成一个“深（deep）”依赖关系*/
+      traverse(value)
+    }
+
+    /*将观察者实例从target栈中取出并设置给Dep.target*/
+    popTarget()
+    this.cleanupDeps()
+    return value
+  }
+
+  /**
+   * Add a dependency to this directive.
+   */
+   /*添加一个依赖关系到Deps集合中*/
+  addDep (dep: Dep) {
+    const id = dep.id
+    if (!this.newDepIds.has(id)) {
+      this.newDepIds.add(id)
+      this.newDeps.push(dep)
+      if (!this.depIds.has(id)) {
+        dep.addSub(this)
+      }
+    }
+  }
+
+  /**
+   * Clean up for dependency collection.
+   */
+   /*清理依赖收集*/
+  cleanupDeps () {
+    /*移除所有观察者对象*/
+    ...
+  }
+
+  /**
+   * Subscriber interface.
+   * Will be called when a dependency changes.
+   */
+   /*
+      调度者接口，当依赖发生改变的时候进行回调。
+   */
+  update () {
+    /* istanbul ignore else */
+    if (this.lazy) {
+      this.dirty = true
+    } else if (this.sync) {
+      /*同步则执行run直接渲染视图*/
+      this.run()
+    } else {
+      /*异步推送到观察者队列中，下一个tick时调用。*/
+      queueWatcher(this)
+    }
+  }
+
+  /**
+   * Scheduler job interface.
+   * Will be called by the scheduler.
+   */
+   /*
+      调度者工作接口，将被调度者回调。
+    */
+  run () {
+    if (this.active) {
+      /* get操作在获取value本身也会执行getter从而调用update更新视图 */
+      const value = this.get()
+      if (
+        value !== this.value ||
+        // Deep watchers and watchers on Object/Arrays should fire even
+        // when the value is the same, because the value may
+        // have mutated.
+        /*
+            即便值相同，拥有Deep属性的观察者以及在对象／数组上的观察者应该被触发更新，因为它们的值可能发生改变。
+        */
+        isObject(value) ||
+        this.deep
+      ) {
+        // set new value
+        const oldValue = this.value
+        /*设置新的值*/
+        this.value = value
+
+        /*触发回调*/
+        if (this.user) {
+          try {
+            this.cb.call(this.vm, value, oldValue)
+          } catch (e) {
+            handleError(e, this.vm, `callback for watcher "${this.expression}"`)
+          }
+        } else {
+          this.cb.call(this.vm, value, oldValue)
+        }
+      }
+    }
+  }
+
+  /**
+   * Evaluate the value of the watcher.
+   * This only gets called for lazy watchers.
+   */
+   /*获取观察者的值*/
+  evaluate () {
+    this.value = this.get()
+    this.dirty = false
+  }
+
+  /**
+   * Depend on all deps collected by this watcher.
+   */
+   /*收集该watcher的所有deps依赖*/
+  depend () {
+    let i = this.deps.length
+    while (i--) {
+      this.deps[i].depend()
+    }
+  }
+
+  /**
+   * Remove self from all dependencies' subscriber list.
+   */
+   /*将自身从所有依赖收集订阅列表删除*/
+  teardown () {
+   ...
+  }
+}
+```
 
 ## 4、Dep
+在Observer中进行data的getter时，Dep就会收集依赖的Watcher，其实Dep就像刚才说的是一个书店，可以接受多个订阅者的订阅，当有新书时即在data变动时，就会通过Dep给Watcher发通知进行更新。
+[src/core/observer/dep.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/observer/dep.js)
 
+```js
+export default class Dep {
+  static target: ?Watcher;
+  id: number;
+  subs: Array<Watcher>;
+
+  constructor () {
+    this.id = uid++
+    this.subs = []
+  }
+
+  /*添加一个观察者对象*/
+  addSub (sub: Watcher) {
+    this.subs.push(sub)
+  }
+
+  /*移除一个观察者对象*/
+  removeSub (sub: Watcher) {
+    remove(this.subs, sub)
+  }
+
+  /*依赖收集，当存在Dep.target的时候添加观察者对象*/
+  depend () {
+    if (Dep.target) {
+      Dep.target.addDep(this)
+    }
+  }
+
+  /*通知所有订阅者*/
+  notify () {
+    // stabilize the subscriber list first
+    const subs = this.subs.slice()
+    for (let i = 0, l = subs.length; i < l; i++) {
+      subs[i].update()
+    }
+  }
+}
+```
+# 总结
+其实在Vue中初始化渲染时，视图上绑定的数据就会实例化一个Watcher，依赖收集就是是通过属性的 getter 函数完成的，文章一开始讲到的 Observer、Watcher、Dep 都与依赖收集相关。其中 Observer 与 Dep 是一对一的关系， Dep 与 Watcher 是多对多的关系，Dep 则是 Observer 和 Watcher 之间的纽带。依赖收集完成后，当属性变化会执行被Observer对象的 dep.notify 方法，这个方法会遍历订阅者（Watcher）列表向其发送消息，Watcher 会执行 run 方法去更新视图，我们来看一张图总结一下：
+![关系图](https://github.com/huangzhuangjia/Vue-learn/blob/master/doc/img/vue-reactive.jpg?raw=true)
+
+1. 在**Vue**中模板编译过程中的指令或者数据绑定都会实例化一个**Watcher**实例，实例化过程中会触发**get()**将自身指向**Dep.target**;
+2. data在**Observer**时执行**getter**会触发**dep.depend()**进行依赖收集;依赖收集的结果：1、data在Observer时闭包的dep实例的subs添加观察它的Watcher实例；2. Watcher的deps中添加观察对象Observer时的闭包dep；
+3. 当data中被Observer的某个对象值变化后，触发subs中观察它的watcher执行update()方法，最后实际上是调用watcher的回调函数cb，进而更新视图。
