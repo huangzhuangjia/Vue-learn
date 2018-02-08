@@ -120,7 +120,9 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
     /*这里的判断是为了确保value是单纯的对象，而不是函数或者是Regexp等情况。而且该对象在shouldConvert的时候才会进行Observer。这是一个标识位，避免重复对value进行Observer
     */
     observerState.shouldConvert &&
-    !isServerRendering() &&
+    !isServerRendering() &&Vue源码
+Vue文档
+Vue源码学习
     (Array.isArray(value) || isPlainObject(value)) &&
     Object.isExtensible(value) &&
     !value._isVue
@@ -489,7 +491,7 @@ export default class Watcher {
 ```
 
 ## 4、Dep
-在Observer中进行data的getter时，Dep就会收集依赖的Watcher，其实Dep就像刚才说的是一个书店，可以接受多个订阅者的订阅，当有新书时即在data变动时，就会通过Dep给Watcher发通知进行更新。
+被Observer的data在触发 **getter** 时，Dep就会收集依赖的Watcher，其实Dep就像刚才说的是一个书店，可以接受多个订阅者的订阅，当有新书时即在data变动时，就会通过Dep给Watcher发通知进行更新。
 [src/core/observer/dep.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/observer/dep.js)
 
 ```js
