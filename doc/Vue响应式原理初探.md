@@ -492,6 +492,7 @@ export default class Watcher {
 
 ## 4、Dep
 被Observer的data在触发 **getter** 时，Dep就会收集依赖的Watcher，其实Dep就像刚才说的是一个书店，可以接受多个订阅者的订阅，当有新书时即在data变动时，就会通过Dep给Watcher发通知进行更新。
+
 [src/core/observer/dep.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/observer/dep.js)
 
 ```js
