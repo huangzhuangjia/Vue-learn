@@ -120,9 +120,7 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
     /*这里的判断是为了确保value是单纯的对象，而不是函数或者是Regexp等情况。而且该对象在shouldConvert的时候才会进行Observer。这是一个标识位，避免重复对value进行Observer
     */
     observerState.shouldConvert &&
-    !isServerRendering() &&Vue源码
-Vue文档
-Vue源码学习
+    !isServerRendering() &&
     (Array.isArray(value) || isPlainObject(value)) &&
     Object.isExtensible(value) &&
     !value._isVue
