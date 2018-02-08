@@ -7,7 +7,7 @@
 ![vue响应式](https://cn.vuejs.org/images/data.png)
 
 我们这里是根据Vue2.3源码进行分析,Vue数据响应式变化主要涉及Observer,Watch,Dep这三个主要的类；因此要弄清Vue响应式变化需要明白这个三个类之间是如何运作联系的；以及它们的原理，负责的逻辑操作。那么我们从一个简单的Vue实例的代码来分析Vue的响应式原理
-```
+```js
 var vue = new Vue({
     el: "#app",
     data: {
@@ -27,7 +27,7 @@ var vue = new Vue({
 # Vue初始化实例
 根据Vue的[生命周期](https://cn.vuejs.org/v2/guide/instance.html#实例生命周期钩子)我们知道，Vue首先会进行init初始化操作；源码在[src/core/instance/init.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/instance/init.js)中
 
-```
+```js
 /*初始化生命周期*/
 initLifecycle(vm)
 /*初始化事件*/
@@ -46,7 +46,8 @@ callHook(vm, 'created')
 以上代码可以看到**initState(vm)**是用来初始化props,methods,data,computed和watch;
 
 [src/core/instance/state.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/instance/state.js)
-```
+
+```js
 /*初始化props、methods、data、computed与watch*/
 export function initState (vm: Component) {
   vm._watchers = []
@@ -103,12 +104,10 @@ function initData (vm: Component) {
 ```
 ## 1、initData
 
-现在我们重点分析下**initData**，它用来初始化data, 通过执行 **observe(data, true /* asRootData */)** 来实例化一个Observe对象，将data定义的每个属性进行getter/setter操作，这里就是Vue实现响应式的基础；**observe**的实现如下 [src/core/observer/index.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/observer/index.js)
+现在我们重点分析下**initData**，这里主要做了两件事，一是将_data上面的数据代理到vm上，二是通过执行 **observe(data, true /* asRootData */)**将所有data变成可观察的，即对data定义的每个属性进行getter/setter操作，这里就是Vue实现响应式的基础；**observe**的实现如下 [src/core/observer/index.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/observer/index.js)
 
-```
- /*
- 尝试创建一个Observer实例（__ob__），如果成功创建Observer实例则返回新的Observer实例，如果已有Observer实例则返回现有的Observer实例。
- */
+```js
+ /*尝试创建一个Observer实例（__ob__），如果成功创建Observer实例则返回新的Observer实例，如果已有Observer实例则返回现有的Observer实例。*/
 export function observe (value: any, asRootData: ?boolean): Observer | void {
   if (!isObject(value)) {
     return
@@ -118,9 +117,7 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
   if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
     ob = value.__ob__
   } else if (
-    /*
-      这里的判断是为了确保value是单纯的对象，而不是函数或者是Regexp等情况。
-      而且该对象在shouldConvert的时候才会进行Observer。这是一个标识位，避免重复对value进行Observer
+    /*这里的判断是为了确保value是单纯的对象，而不是函数或者是Regexp等情况。而且该对象在shouldConvert的时候才会进行Observer。这是一个标识位，避免重复对value进行Observer
     */
     observerState.shouldConvert &&
     !isServerRendering() &&
@@ -145,7 +142,7 @@ Observer类是将每个目标对象（即data）的键值转换成getter/setter�
 
 [src/core/observer/index.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/observer/index.js)
 
-```
+```js
 export class Observer {
   value: any;
   dep: Dep;
@@ -155,15 +152,10 @@ export class Observer {
     this.value = value
     this.dep = new Dep()
     this.vmCount = 0
-    /* 
-    将Observer实例绑定到data的__ob__属性上面去，之前说过observe的时候会先检测是否已经有__ob__对象存放Observer实例了，def方法定义可以参考/src/core/util/lang.js
-    */
+    /* 将Observer实例绑定到data的__ob__属性上面去，之前说过observe的时候会先检测是否已经有__ob__对象存放Observer实例了，def方法定义可以参考/src/core/util/lang.js*/
     def(value, '__ob__', this)
     if (Array.isArray(value)) {
-      /*
-          如果是数组，将修改后可以截获响应的数组方法替换掉该数组的原型中的原生方法，达到监听数组数据变化响应的效果。
-          这里如果当前浏览器支持__proto__属性，则直接覆盖当前数组对象原型上的原生数组方法，如果不支持该属性，则直接覆盖数组对象的原型。
-      */
+      /*如果是数组，将修改后可以截获响应的数组方法替换掉该数组的原型中的原生方法，达到监听数组数据变化响应的效果。这里如果当前浏览器支持__proto__属性，则直接覆盖当前数组对象原型上的原生数组方法，如果不支持该属性，则直接覆盖数组对象的原型。*/
       const augment = hasProto
         ? protoAugment  /*直接覆盖原型的方法来修改目标对象*/
         : copyAugment   /*定义（覆盖）目标对象或数组的某一个方法*/
@@ -185,9 +177,9 @@ export class Observer {
     }
   }
 ```
-首先将Observer实例绑定到data的__ob__属性上面去，这里可以减少每次实例化已经有实例的操作；若data为数组，先实现对应的[变异方法](https://cn.vuejs.org/v2/guide/list.html#变异方法)（这里变异方法是指Vue重写了数组的7种原生方法，这里不做赘述，后续再说明），再将数组的每个成员进行observe，使之成响应式数据；否则执行walk()方法，遍历data所有的数据，进行getter/setter绑定，这里的核心方法就是**defineReative(obj, keys[i], obj[keys[i]])**
+首先将Observer实例绑定到data的__ob__属性上面去，防止重复绑定；若data为数组，先实现对应的[变异方法](https://cn.vuejs.org/v2/guide/list.html#变异方法)（这里变异方法是指Vue重写了数组的7种原生方法，这里不做赘述，后续再说明），再将数组的每个成员进行observe，使之成响应式数据；否则执行walk()方法，遍历data所有的数据，进行getter/setter绑定，这里的核心方法就是**defineReative(obj, keys[i], obj[keys[i]])**
 
-```
+```js
 export function defineReactive (
   obj: Object,
   key: string,
@@ -259,7 +251,7 @@ export function defineReactive (
 
 那么问题来了，我们为啥要收集相关依赖呢？
 
-```
+```js
 new Vue({
     template: 
         `<div>
@@ -284,5 +276,6 @@ new Vue({
 
 从图我们可以简单理解：Dep可以看做是书店，Watcher就是书店订阅者，而Observer就是书店的书，订阅者在书店订阅书籍，就可以添加订阅者信息，一旦有新书就会通过书店给订阅者发送消息。
 ## 3、Watcher
+
 ## 4、Dep
 
