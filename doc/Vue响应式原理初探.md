@@ -1,12 +1,12 @@
 # 初步
 
-讲到Vue的响应式原理，我们可以从它的兼容性说起，Vue不支持IE8以下版本的浏览器，原因就是Vue是基于 [Object.defineProperty](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty) 来实现数据响应的，而 Object.defineProperty 是 ES5 中一个无法 shim 的特性，这也就是为什么 Vue 不支持 IE8 以及更低版本浏览器的原因；Vue通过Object.defineProperty的**getter/setter**对收集的依赖项进行监听,在属性被访问和修改时通知变化,进而更新视图数据；
+最近一段时间在阅读Vue源码，从它的核心原理入手，开始了源码的学习，而其核心原理就是其数据的响应式，讲到Vue的响应式原理，我们可以从它的兼容性说起，Vue不支持IE8以下版本的浏览器，因为Vue是基于 [Object.defineProperty](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty) 来实现数据响应的，而 Object.defineProperty 是 ES5 中一个无法 shim 的特性，这也就是为什么 Vue 不支持 IE8 以及更低版本浏览器的原因；Vue通过Object.defineProperty的 **getter/setter** 对收集的依赖项进行监听,在属性被访问和修改时通知变化,进而更新视图数据；
 
-受现代JavaScript 的限制 (以及废弃 **Object.observe**)，Vue不能检测到对象属性的添加或删除。由于 Vue 会在初始化实例时对属性执行**getter/setter**转化过程，所以属性必须在**data**对象上存在才能让Vue转换它，这样才能让它是响应的。
+受现代JavaScript 的限制 (以及废弃 **Object.observe**)，Vue不能检测到对象属性的添加或删除。由于 Vue 会在初始化实例时对属性执行 **getter/setter** 转化过程，所以属性必须在 **data** 对象上存在才能让Vue转换它，这样才能让它是响应的。
 
 ![vue响应式](https://cn.vuejs.org/images/data.png)
 
-我们这里是根据Vue2.3源码进行分析,Vue数据响应式变化主要涉及Observer,Watch,Dep这三个主要的类；因此要弄清Vue响应式变化需要明白这个三个类之间是如何运作联系的；以及它们的原理，负责的逻辑操作。那么我们从一个简单的Vue实例的代码来分析Vue的响应式原理
+我们这里是根据Vue2.3源码进行分析,Vue数据响应式变化主要涉及 **Observer**, **Watcher** , **Dep** 这三个主要的类；因此要弄清Vue响应式变化需要明白这个三个类之间是如何运作联系的；以及它们的原理，负责的逻辑操作。那么我们从一个简单的Vue实例的代码来分析Vue的响应式原理
 ```js
 var vue = new Vue({
     el: "#app",
@@ -102,7 +102,11 @@ function initData (vm: Component) {
 }
 
 ```
-## 1、initData
+## 1、initData参考
+
+Vue源码
+Vue文档
+Vue源码学习
 
 现在我们重点分析下**initData**，这里主要做了两件事，一是将_data上面的数据代理到vm上，二是通过执行 **observe(data, true /* asRootData */)**将所有data变成可观察的，即对data定义的每个属性进行getter/setter操作，这里就是Vue实现响应式的基础；**observe**的实现如下 [src/core/observer/index.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/observer/index.js)
 
@@ -269,7 +273,7 @@ new Vue({
 ```
 我们可以从以上代码看出，data中text3并没有被模板实际用到，为了提高代码执行效率，我们没有必要对其进行响应式处理，因此，依赖收集简单点理解就是收集只在实际页面中用到的data数据，然后打上标记，这里就是标记为Dep.target。
 
-在setter方法中，
+在setter方法中:
 1. 获取新的值并且进行observe，保证数据响应式；
 2. 通过dep对象通知所有观察者去更新数据，从而达到响应式效果。
 
@@ -537,3 +541,9 @@ export default class Dep {
 1. 在 **Vue** 中模板编译过程中的指令或者数据绑定都会实例化一个 **Watcher** 实例，实例化过程中会触发 **get()** 将自身指向 **Dep.target**;
 2. data在 **Observer** 时执行 **getter** 会触发 **dep.depend()** 进行依赖收集;依赖收集的结果：1、data在 **Observer** 时闭包的dep实例的subs添加观察它的 **Watcher** 实例；2. **Watcher** 的deps中添加观察对象 **Observer** 时的闭包dep；
 3. 当data中被 **Observer** 的某个对象值变化后，触发subs中观察它的watcher执行 **update()** 方法，最后实际上是调用watcher的回调函数cb，进而更新视图。
+
+# 参考
+
+[Vue源码]()
+[Vue文档]()
+[Vue源码学习]()
