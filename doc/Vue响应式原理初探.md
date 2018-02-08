@@ -102,11 +102,7 @@ function initData (vm: Component) {
 }
 
 ```
-## 1、initData参考
-
-Vue源码
-Vue文档
-Vue源码学习
+## 1、initData
 
 现在我们重点分析下**initData**，这里主要做了两件事，一是将_data上面的数据代理到vm上，二是通过执行 **observe(data, true /* asRootData */)**将所有data变成可观察的，即对data定义的每个属性进行getter/setter操作，这里就是Vue实现响应式的基础；**observe**的实现如下 [src/core/observer/index.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/observer/index.js)
 
