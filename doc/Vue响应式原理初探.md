@@ -134,7 +134,7 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
   return ob
 }
 ```
-这里**new Observer(value)**就是实现响应式的核心方法之一了，通过它将data转变可以成观察的，而这里正是我们开头说的，用了 **Object.defineProperty** 实现了data的getter/setter操作，通过**Watcher**来观察数据的变化，进而更新到视图中。
+这里 **new Observer(value)** 就是实现响应式的核心方法之一了，通过它将data转变可以成观察的，而这里正是我们开头说的，用了 **Object.defineProperty** 实现了data的 **getter/setter** 操作，通过 **Watcher** 来观察数据的变化，进而更新到视图中。
 
 ## 2、Observer
 
@@ -179,7 +179,7 @@ export class Observer {
 ```
 1. 首先将Observer实例绑定到data的__ob__属性上面去，防止重复绑定；
 2. 若data为数组，先实现对应的[变异方法](https://cn.vuejs.org/v2/guide/list.html#变异方法)（这里变异方法是指Vue重写了数组的7种原生方法，这里不做赘述，后续再说明），再将数组的每个成员进行observe，使之成响应式数据；
-3. 否则执行walk()方法，遍历data所有的数据，进行getter/setter绑定，这里的核心方法就是**defineReative(obj, keys[i], obj[keys[i]])**
+3. 否则执行walk()方法，遍历data所有的数据，进行getter/setter绑定，这里的核心方法就是 **defineReative(obj, keys[i], obj[keys[i]])**
 
 ```js
 export function defineReactive (
