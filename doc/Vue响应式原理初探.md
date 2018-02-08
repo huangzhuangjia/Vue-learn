@@ -43,7 +43,7 @@ initProvide(vm) // resolve provide after data/props
 /*调用created钩子函数并且触发created钩子事件*/
 callHook(vm, 'created')
 ```
-以上代码可以看到**initState(vm)**是用来初始化props,methods,data,computed和watch;
+以上代码可以看到 **initState(vm)** 是用来初始化props,methods,data,computed和watch;
 
 [src/core/instance/state.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/instance/state.js)
 
