@@ -248,7 +248,7 @@ export function defineReactive (
 }
 ```
 其中getter方法：
-1. 先为每个data声明一个**Dep**实例对象，被用于getter时执行dep.depend()进行收集相关的依赖;
+1. 先为每个data声明一个 **Dep** 实例对象，被用于getter时执行dep.depend()进行收集相关的依赖;
 2. 根据Dep.target来判断是否收集依赖，还是普通取值。Dep.target是在什么时候，如何收集的后面再说明，先简单了解它的作用，
 
 那么问题来了，我们为啥要收集相关依赖呢？
@@ -489,7 +489,7 @@ export default class Watcher {
 ```
 
 ## 4、Dep
-被Observer的data在触发 **getter** 时，Dep就会收集依赖的Watcher，其实Dep就像刚才说的是一个书店，可以接受多个订阅者的订阅，当有新书时即在data变动时，就会通过Dep给Watcher发通知进行更新。
+被Observer的data在触发 **getter** 时，**Dep** 就会收集依赖的 **Watcher** ，其实 **Dep** 就像刚才说的是一个书店，可以接受多个订阅者的订阅，当有新书时即在data变动时，就会通过 **Dep** 给 **Watcher** 发通知进行更新。
 
 [src/core/observer/dep.js](https://github.com/huangzhuangjia/Vue-learn/blob/master/core/observer/dep.js)
 
@@ -532,7 +532,7 @@ export default class Dep {
 }
 ```
 # 总结
-其实在Vue中初始化渲染时，视图上绑定的数据就会实例化一个Watcher，依赖收集就是是通过属性的 getter 函数完成的，文章一开始讲到的 Observer、Watcher、Dep 都与依赖收集相关。其中 Observer 与 Dep 是一对一的关系， Dep 与 Watcher 是多对多的关系，Dep 则是 Observer 和 Watcher 之间的纽带。依赖收集完成后，当属性变化会执行被Observer对象的 dep.notify 方法，这个方法会遍历订阅者（Watcher）列表向其发送消息，Watcher 会执行 run 方法去更新视图，我们再来看一张图总结一下：
+其实在 **Vue** 中初始化渲染时，视图上绑定的数据就会实例化一个 **Watcher**，依赖收集就是是通过属性的 **getter** 函数完成的，文章一开始讲到的 **Observer** 、**Watcher** 、**Dep** 都与依赖收集相关。其中 **Observer** 与 **Dep** 是一对一的关系， **Dep** 与 **Watcher** 是多对多的关系，**Dep** 则是 **Observer** 和 **Watcher** 之间的纽带。依赖收集完成后，当属性变化会执行被 **Observer** 对象的 **dep.notify()** 方法，这个方法会遍历订阅者（Watcher）列表向其发送消息， **Watcher** 会执行 **run** 方法去更新视图，我们再来看一张图总结一下：
 ![关系图](https://github.com/huangzhuangjia/Vue-learn/blob/master/doc/img/vue-reactive.jpg?raw=true)
 
 1. 在 **Vue** 中模板编译过程中的指令或者数据绑定都会实例化一个 **Watcher** 实例，实例化过程中会触发 **get()** 将自身指向 **Dep.target**;
