@@ -544,6 +544,6 @@ export default class Dep {
 
 # 参考
 
-[Vue源码](https://github.com/vuejs/vue)
-[Vue文档](https://cn.vuejs.org)
-[Vue源码学习](https://github.com/answershuto/learnVue)
+* [Vue源码](https://github.com/vuejs/vue)
+* [Vue文档](https://cn.vuejs.org)
+* [Vue源码学习](https://github.com/answershuto/learnVue)
