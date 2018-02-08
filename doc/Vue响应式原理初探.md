@@ -531,9 +531,9 @@ export default class Dep {
 }
 ```
 # 总结
-其实在Vue中初始化渲染时，视图上绑定的数据就会实例化一个Watcher，依赖收集就是是通过属性的 getter 函数完成的，文章一开始讲到的 Observer、Watcher、Dep 都与依赖收集相关。其中 Observer 与 Dep 是一对一的关系， Dep 与 Watcher 是多对多的关系，Dep 则是 Observer 和 Watcher 之间的纽带。依赖收集完成后，当属性变化会执行被Observer对象的 dep.notify 方法，这个方法会遍历订阅者（Watcher）列表向其发送消息，Watcher 会执行 run 方法去更新视图，我们来看一张图总结一下：
+其实在Vue中初始化渲染时，视图上绑定的数据就会实例化一个Watcher，依赖收集就是是通过属性的 getter 函数完成的，文章一开始讲到的 Observer、Watcher、Dep 都与依赖收集相关。其中 Observer 与 Dep 是一对一的关系， Dep 与 Watcher 是多对多的关系，Dep 则是 Observer 和 Watcher 之间的纽带。依赖收集完成后，当属性变化会执行被Observer对象的 dep.notify 方法，这个方法会遍历订阅者（Watcher）列表向其发送消息，Watcher 会执行 run 方法去更新视图，我们再来看一张图总结一下：
 ![关系图](https://github.com/huangzhuangjia/Vue-learn/blob/master/doc/img/vue-reactive.jpg?raw=true)
 
-1. 在**Vue**中模板编译过程中的指令或者数据绑定都会实例化一个**Watcher**实例，实例化过程中会触发**get()**将自身指向**Dep.target**;
-2. data在**Observer**时执行**getter**会触发**dep.depend()**进行依赖收集;依赖收集的结果：1、data在Observer时闭包的dep实例的subs添加观察它的Watcher实例；2. Watcher的deps中添加观察对象Observer时的闭包dep；
-3. 当data中被Observer的某个对象值变化后，触发subs中观察它的watcher执行update()方法，最后实际上是调用watcher的回调函数cb，进而更新视图。
+1. 在 **Vue** 中模板编译过程中的指令或者数据绑定都会实例化一个 **Watcher** 实例，实例化过程中会触发 **get()** 将自身指向 **Dep.target**;
+2. data在 **Observer** 时执行 **getter** 会触发 **dep.depend()** 进行依赖收集;依赖收集的结果：1、data在 **Observer** 时闭包的dep实例的subs添加观察它的 **Watcher** 实例；2. **Watcher** 的deps中添加观察对象 **Observer** 时的闭包dep；
+3. 当data中被 **Observer** 的某个对象值变化后，触发subs中观察它的watcher执行 **update()** 方法，最后实际上是调用watcher的回调函数cb，进而更新视图。
